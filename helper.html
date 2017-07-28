@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scheduler</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-timepicker/1.10.0/jquery.timepicker.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.6.5/angular.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-timepicker/1.10.0/jquery.timepicker.css" />
+    <script>
+var m=angular.module("ui.timepicker",[]);m.value("uiTimepickerConfig",{step:15}),m.directive("uiTimepicker",["uiTimepickerConfig","$parse","$window",function(a,b,c){var d=c.moment,e=function(a){return void 0!==d&&d.isMoment(a)&&a.isValid()},f=function(a){return null!==a&&(angular.isDate(a)||e(a))};return{restrict:"A",require:"ngModel",scope:{ngModel:"=",baseDate:"=",uiTimepicker:"="},priority:1,link:function(b,c,g,h){"use strict";var i=angular.copy(a),j=i.asMoment||!1;delete i.asMoment,h.$render=function(){var a=h.$modelValue;if(angular.isDefined(a)){if(null!==a&&""!==a&&!f(a))throw new Error("ng-Model value must be a Date or Moment object - currently it is a "+typeof a+".");e(a)&&(a=a.toDate()),c.is(":focus")||m()||c.timepicker("setTime",a),null===a&&k()}},b.$watch("ngModel",function(){h.$render()},!0),i.appendTo=i.appendTo||c.parent(),c.timepicker(angular.extend(i,b.uiTimepicker?b.uiTimepicker:{}));var k=function(){c.timepicker("setTime",null)},l=function(){return c.val().trim()},m=function(){return l()&&null===h.$modelValue};c.on("$destroy",function(){c.timepicker("remove")});var n=function(){var a=h.$modelValue?h.$modelValue:b.baseDate;return e(a)?a.toDate():a},o=function(a){return j?d(a):a};c.is("input")?(h.$parsers.unshift(function(a){var b=c.timepicker("getTime",n());return b?o(b):b}),h.$validators.time=function(a){return g.required||l()?f(a):!0}):c.on("changeTime",function(){b.$evalAsync(function(){var a=c.timepicker("getTime",n());h.$setViewValue(a)})})}}}]);
+    </script>
+
+    <script>
+
+var myApp = angular.module('myApp',['ui.timepicker']);
+
+angular.module('ui.timepicker').value('uiTimepickerConfig',{
+  step: 5,
+  asMoment: true,
+});
+
+
+myApp.controller('myController', function ($scope) {
+
+    $scope.rows = [];
+    $scope.startTime;
+
+    $scope.timePickerOptions = {
+        step: 5,
+        minTime: '9am',
+        maxTime: '11am'
+    };
+
+    $scope.saveStartTime = function (startTimeString) {
+        $scope.startTime = moment(startTimeString, 'H:m');
+    }
+
+
+    $scope.updateTimes = function () {
+        console.log($scope.startTime);
+        let currentTime = $scope.startTime.clone()
+        $scope.rows.forEach(function (row) {
+            if (row.timeOffset && row.timeOffset > 0) {
+                currentTime.add(row.timeOffset, 'minutes')
+                row.time = currentTime.clone()
+            } else {
+                row.time = undefined
+            }
+        });
+    }
+
+    $scope.parseData = function (unparsed) {
+        let lines = unparsed
+            .split('\n')
+            .map((s) => s.trim())
+            .filter((s) => s != '')
+
+        let rows = []
+
+        for (let i = 0; i < lines.length; i += 3) {
+            rows.push(
+                {
+                    room: lines[i],
+                    attending: lines[i + 1],
+                    language: lines[i + 2]
+                }
+            )
+        }
+
+        rows[0].timeOffset = 0;
+
+        $scope.rows = rows
+    }
+
+    $scope.deleteRow = function (index) {
+        $scope.rows.splice(index, 1)
+    }
+
+    $scope.moveUp = function (index) {
+        swap(index, index-1)
+        $scope.updateTimes()
+    }
+
+    $scope.moveDown = function (index) {
+        swap(index, index+1)
+        $scope.updateTimes()
+    }
+
+    function swap (index, index2) {
+        if (index < 0 || index >= $scope.rows.length) { return; }
+        if (index2 < 0 || index2 >= $scope.rows.length) { return; }
+        var x = $scope.rows[index];
+        $scope.rows[index] = $scope.rows[index2];
+        $scope.rows[index2] = x;
+    }
+    
+});
+
+    </script>
+</head>
+<body ng-app="myApp">
+<div ng-controller="myController">
+
+    <textarea ng-model="unparsed"></textarea>
+    <button ng-click="parseData(unparsed)">Parse</button>
+    <table>
+        <tr ng-repeat="row in rows">
+
+            <td><button ng-click="moveUp($index)">&#x25B2;</button></td>
+            <td><button ng-click="moveDown($index)">&#x25BC;</button></td>
+            <td><button ng-click="deleteRow($index)">x</button></td>
+            <td><a href="#" ng-click="row.timeOffset=0;updateTimes()">{{row.time.format('hh:mm')}}</a></td>
+
+            <td ng-show="$first">
+                <input ng-model="startTimeString"/>
+                <button ng-click="saveStartTime(startTimeString)">save</button>
+            </td>
+
+            <td ng-hide="$first">
+                <div ng-hide="row.timeOffset>0">
+                    <button ng-click="row.timeOffset=5;updateTimes()">+5</button>
+                    <button ng-click="row.timeOffset=10;updateTimes()">+10</button>
+                    <button ng-click="row.timeOffset=15;updateTimes()">+15</button>
+                </div>
+            </td>
+
+            <td>{{row.room}}</td>
+            <td>{{row.attending}}</td>
+            <td>{{row.language}}</td>
+            <td><input/></td>
+        </tr>
+    </table>
+
+</body>
+</html>
